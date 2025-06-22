@@ -17,7 +17,7 @@
         .font-caveat {
             font-family: 'Caveat', cursive;
         }
-        .scando-blue-text { color: #003366; }
+        .scando-blue-text { color: #023047; } /* Updated to a color from the new palette */
         .card {
             background-color: white;
             border-radius: 0.75rem;
@@ -52,7 +52,7 @@
         }
         .loader {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #00aaff;
+            border-top: 4px solid #219EBC; /* Updated to a color from the new palette */
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -86,7 +86,7 @@
             </div>
             <div class="mt-6 flex items-center justify-end">
                  <div id="loader" class="loader mr-4 hidden"></div>
-                <button id="loadDataBtn" class="bg-[#003366] text-white font-bold py-2 px-6 rounded-lg hover:bg-[#005f9e] transition-colors">
+                <button id="loadDataBtn" class="bg-[#023047] text-white font-bold py-2 px-6 rounded-lg hover:bg-[#126782] transition-colors">
                     Load Dashboard
                 </button>
             </div>
@@ -101,7 +101,6 @@
         </header>
 
         <!-- Filters section -->
-        <!-- FIX: Adjusted grid columns for new filter -->
         <div id="filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm">
             <div>
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700">Status</label>
@@ -111,7 +110,6 @@
                 <label for="typeFilter" class="block text-sm font-medium text-gray-700">Project Type</label>
                 <select id="typeFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
             </div>
-            <!-- NEW: Role Filter -->
             <div>
                 <label for="roleFilter" class="block text-sm font-medium text-gray-700">Role</label>
                 <select id="roleFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
@@ -149,19 +147,32 @@
                 <p id="onHoldProjects" class="text-4xl font-bold text-gray-500">0</p>
             </div>
         </main>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div class="card p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload Distribution</h2>
-                <div class="relative h-80">
-                    <canvas id="workloadChart"></canvas>
-                </div>
-            </div>
-            <div class="card p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Status Overview</h2>
-                <div class="relative h-80">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Status</h2>
+                <div class="relative h-72">
                     <canvas id="projectStatusChart"></canvas>
                 </div>
+            </div>
+             <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Projects by Type</h2>
+                <div class="relative h-72">
+                    <canvas id="projectTypeChart"></canvas>
+                </div>
+            </div>
+             <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Role Distribution</h2>
+                <div class="relative h-72">
+                    <canvas id="roleDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload Distribution</h2>
+            <div class="relative h-96">
+                <canvas id="workloadChart"></canvas>
             </div>
         </div>
         
@@ -214,7 +225,7 @@
 
         const statusFilter = document.getElementById('statusFilter');
         const typeFilter = document.getElementById('typeFilter');
-        const roleFilter = document.getElementById('roleFilter'); // New element
+        const roleFilter = document.getElementById('roleFilter');
         const resourceFilter = document.getElementById('resourceFilter');
         
         const headerMapping = {
@@ -230,9 +241,11 @@
             'project-status': 'projectStatus'
         };
 
-        let workloadChartInstance;
-        let projectStatusChartInstance;
+        let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance;
         let fullProjectData = [];
+
+        // FIX: New "Blue & Orange" color palette
+        const blueAndOrangePalette = ['#219EBC', '#126782', '#023047', '#FFB703', '#FD9E02', '#FB8500', '#8ECAE6', '#FB9017'];
 
         function parseSheetData(data) {
             const values = data.values;
@@ -283,7 +296,7 @@
         function populateFilters(data) {
             const statuses = [...new Set(data.map(p => p.projectStatus).filter(Boolean))];
             const types = [...new Set(data.map(p => p.projectType).filter(Boolean))];
-            const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))]; // New: get unique roles
+            const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))];
             const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
 
             statusFilter.innerHTML = '<option value="all">All Statuses</option>';
@@ -292,9 +305,8 @@
             typeFilter.innerHTML = '<option value="all">All Types</option>';
             types.forEach(t => typeFilter.innerHTML += `<option value="${t}">${t}</option>`);
             
-            // New: populate role filter
             roleFilter.innerHTML = '<option value="all">All Roles</option>';
-            roles.forEach(r => roleFilter.innerHTML += `<option value="${r}">${r}</option>`);
+            roles.sort().forEach(r => roleFilter.innerHTML += `<option value="${r}">${r}</option>`);
 
             resourceFilter.innerHTML = '<option value="all">All Resources</option>';
             resources.sort().forEach(r => resourceFilter.innerHTML += `<option value="${r}">${r}</option>`);
@@ -307,13 +319,13 @@
         function applyFilters() {
             const selectedStatus = statusFilter.value;
             const selectedType = typeFilter.value;
-            const selectedRole = roleFilter.value; // New: get role value
+            const selectedRole = roleFilter.value;
             const selectedResource = resourceFilter.value;
 
             const filteredData = fullProjectData.filter(p => {
                 const statusMatch = selectedStatus === 'all' || p.projectStatus === selectedStatus;
                 const typeMatch = selectedType === 'all' || p.projectType === selectedType;
-                const roleMatch = selectedRole === 'all' || p.roleInProject === selectedRole; // New: role match logic
+                const roleMatch = selectedRole === 'all' || p.roleInProject === selectedRole;
                 const resourceMatch = selectedResource === 'all' || p.resourceName === selectedResource;
                 return statusMatch && typeMatch && roleMatch && resourceMatch;
             });
@@ -344,8 +356,10 @@
             document.getElementById('onHoldProjects').textContent = onHoldProjects.length;
             document.getElementById('completedProjects').textContent = completedProjects.length;
             
-            updateWorkloadChart(data);
             updateStatusChart(uniqueProjectDetails);
+            updateTypeChart(uniqueProjectDetails);
+            updateRoleDistributionChart(data);
+            updateWorkloadChart(data);
             updateAssignmentsTable(data);
             updateProjectSummaryTable(uniqueProjectDetails);
         }
@@ -376,27 +390,44 @@
 
         function updateWorkloadChart(data) {
             const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
+            const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))];
+
             const workload = resources.reduce((acc, name) => {
-                const assignments = data.filter(p => p.resourceName === name);
-                acc[name] = { count: assignments.length, projects: assignments.map(a => ({ name: a.projectName, customer: a.projectCustomer, role: a.roleInProject })) };
+                acc[name] = {};
+                roles.forEach(role => {
+                    acc[name][role] = data.filter(p => p.resourceName === name && p.roleInProject === role);
+                });
                 return acc;
             }, {});
+
+            const datasets = roles.map((role, index) => {
+                return {
+                    label: role,
+                    data: resources.map(resource => (workload[resource][role] || []).length),
+                    backgroundColor: blueAndOrangePalette[index % blueAndOrangePalette.length]
+                }
+            });
 
             if(workloadChartInstance) workloadChartInstance.destroy();
             workloadChartInstance = new Chart(document.getElementById('workloadChart'), {
                 type: 'bar',
-                data: {
-                    labels: Object.keys(workload),
-                    datasets: [{ label: 'Projects', data: Object.values(workload).map(w => w.count), backgroundColor: '#003366' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
-                    const person = ctx.label;
-                    const personData = workload[person];
-                    if (!personData) return '';
-                    let lines = [`${person}: ${personData.count} Assignment(s)`];
-                    personData.projects.forEach(p => lines.push(`- ${p.name || ''} (${p.customer || ''}) as ${p.role || ''}`));
-                    return lines;
-                }}}}}
+                data: { labels: resources, datasets: datasets },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }, 
+                    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', callbacks: {
+                        label: function(context) {
+                            const role = context.dataset.label;
+                            const resourceName = context.label;
+                            const count = context.raw;
+                            if (count === 0) return undefined;
+                            const assignments = workload[resourceName]?.[role] || [];
+                            let lines = [` ${role}: ${count}`]; 
+                            assignments.forEach(p => { lines.push(`   - ${p.projectName} (${p.projectCustomer})`); });
+                            return lines;
+                        }
+                    }}}
+                }
             });
         }
         
@@ -409,7 +440,7 @@
                  return acc;
             }, {});
 
-            const statusColors = { 'On Track': '#22c55e', 'At Risk': '#f59e0b', 'Off Track': '#ef4444', 'On Hold': '#6b7280', 'Completed': '#3b82f6' };
+            const statusColors = { 'On Track': '#48BB78', 'At Risk': '#ECC94B', 'Off Track': '#F56565', 'On Hold': '#A0AEC0', 'Completed': '#4299E1' };
 
             if(projectStatusChartInstance) projectStatusChartInstance.destroy();
             projectStatusChartInstance = new Chart(document.getElementById('projectStatusChart'), {
@@ -418,16 +449,78 @@
                     labels: Object.keys(statuses),
                     datasets: [{ 
                         data: Object.values(statuses).map(s => s.count), 
-                        backgroundColor: Object.keys(statuses).map(s => statusColors[s] || '#a8a29e'),
+                        backgroundColor: Object.keys(statuses).map(s => statusColors[s] || '#CBD5E0'),
                         hoverOffset: 4 
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => {
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
                     const status = ctx.label || '';
                     const count = ctx.raw;
                     const statusInfo = statuses[status];
                     let lines = [`${status}: ${count}`];
                     if (statusInfo?.projects) statusInfo.projects.forEach(p => lines.push(`- ${p.name} (${p.customer})`));
+                    return lines;
+                }}}}}
+            });
+        }
+
+        function updateTypeChart(projects) {
+            const types = projects.reduce((acc, p) => {
+                 if (!p.projectType) return acc;
+                 if (!acc[p.projectType]) acc[p.projectType] = { count: 0, projects: [] };
+                 acc[p.projectType].count++;
+                 acc[p.projectType].projects.push({ name: p.projectName, customer: p.projectCustomer });
+                 return acc;
+            }, {});
+
+            if(projectTypeChartInstance) projectTypeChartInstance.destroy();
+            projectTypeChartInstance = new Chart(document.getElementById('projectTypeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(types),
+                    datasets: [{ 
+                        data: Object.values(types).map(t => t.count), 
+                        backgroundColor: Object.keys(types).map((t, i) => blueAndOrangePalette[i % blueAndOrangePalette.length]),
+                        hoverOffset: 4 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
+                    const type = ctx.label || '';
+                    const count = ctx.raw;
+                    const typeInfo = types[type];
+                    let lines = [`${type}: ${count}`];
+                    if (typeInfo?.projects) typeInfo.projects.forEach(p => lines.push(`- ${p.name} (${p.customer})`));
+                    return lines;
+                }}}}}
+            });
+        }
+        
+        function updateRoleDistributionChart(assignments) {
+            const roles = assignments.reduce((acc, p) => {
+                 if (!p.roleInProject) return acc;
+                 if (!acc[p.roleInProject]) acc[p.roleInProject] = { count: 0, projects: [] };
+                 acc[p.roleInProject].count++;
+                 acc[p.roleInProject].projects.push({ name: p.projectName, customer: p.projectCustomer });
+                 return acc;
+            }, {});
+            
+            if(roleDistributionChartInstance) roleDistributionChartInstance.destroy();
+            roleDistributionChartInstance = new Chart(document.getElementById('roleDistributionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(roles),
+                    datasets: [{ 
+                        data: Object.values(roles).map(r => r.count), 
+                        backgroundColor: Object.keys(roles).map((r, i) => blueAndOrangePalette[i % blueAndOrangePalette.length]),
+                        hoverOffset: 4 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
+                    const role = ctx.label || '';
+                    const count = ctx.raw;
+                    const roleInfo = roles[role];
+                    let lines = [`${role}: ${count}`];
+                    if (roleInfo?.projects) roleInfo.projects.forEach(p => lines.push(`- ${p.name} (${p.customer})`));
                     return lines;
                 }}}}}
             });
