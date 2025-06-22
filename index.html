@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .font-caveat {
+            font-family: 'Caveat', cursive;
+        }
+        .scando-blue-text { color: #003366; }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .filter-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00aaff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md mx-4">
+            <h2 class="text-2xl font-bold mb-2 scando-blue-text">Connect to Google Sheet</h2>
+            <p class="text-gray-600 mb-6">Enter your API key and Sheet details to load the data.</p>
+            <div id="modalError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-4 hidden"></div>
+            <div>
+                <label for="apiKey" class="block text-sm font-medium text-gray-700">Google API Key</label>
+                <input type="password" id="apiKey" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mt-4">
+                <label for="sheetId" class="block text-sm font-medium text-gray-700">Google Sheet ID</label>
+                <input type="text" id="sheetId" value="1LOOYxnD-DaU3tMe6fAVRsrJO17APVd1xvKVL_OAl1pg" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+             <div class="mt-4">
+                <label for="sheetRange" class="block text-sm font-medium text-gray-700">Sheet Name & Range</label>
+                <input type="text" id="sheetRange" value="Assignments!A:K" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mt-6 flex items-center justify-end">
+                 <div id="loader" class="loader mr-4 hidden"></div>
+                <button id="loadDataBtn" class="bg-[#003366] text-white font-bold py-2 px-6 rounded-lg hover:bg-[#005f9e] transition-colors">
+                    Load Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Content (hidden by default) -->
+    <div id="dashboardContent" class="hidden">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-caveat scando-blue-text">Project Insights Dashboard</h1>
+            <p class="text-gray-500">An overview of your projects, team, and workload.</p>
+        </header>
+
+        <!-- Filters section -->
+        <!-- FIX: Adjusted grid columns for new filter -->
+        <div id="filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm">
+            <div>
+                <label for="statusFilter" class="block text-sm font-medium text-gray-700">Status</label>
+                <select id="statusFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+            <div>
+                <label for="typeFilter" class="block text-sm font-medium text-gray-700">Project Type</label>
+                <select id="typeFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+            <!-- NEW: Role Filter -->
+            <div>
+                <label for="roleFilter" class="block text-sm font-medium text-gray-700">Role</label>
+                <select id="roleFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+            <div>
+                <label for="resourceFilter" class="block text-sm font-medium text-gray-700">Resource</label>
+                <select id="resourceFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+        </div>
+
+        <!-- KPI Cards Section -->
+        <main class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+            <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">Total Projects</h2>
+                <p id="totalProjects" class="text-4xl font-bold scando-blue-text">0</p>
+            </div>
+            <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">Completed</h2>
+                <p id="completedProjects" class="text-4xl font-bold text-blue-500">0</p>
+            </div>
+             <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">Unassigned Roles</h2>
+                <p id="unassignedAssignments" class="text-4xl font-bold text-amber-500">0</p>
+            </div>
+            <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">At Risk</h2>
+                <p id="atRiskProjects" class="text-4xl font-bold text-amber-500">0</p>
+            </div>
+            <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">Off Track</h2>
+                <p id="offTrackProjects" class="text-4xl font-bold text-red-500">0</p>
+            </div>
+             <div class="card p-6 flex flex-col justify-between">
+                <h2 class="text-lg font-semibold text-gray-700">On Hold</h2>
+                <p id="onHoldProjects" class="text-4xl font-bold text-gray-500">0</p>
+            </div>
+        </main>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload Distribution</h2>
+                <div class="relative h-80">
+                    <canvas id="workloadChart"></canvas>
+                </div>
+            </div>
+            <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Status Overview</h2>
+                <div class="relative h-80">
+                    <canvas id="projectStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card p-6 mt-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Assignments List</h2>
+            <div class="overflow-y-auto max-h-96">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Project (Customer)</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Role</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Assigned Resource</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentsList"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card p-6 mt-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Summary</h2>
+            <div class="overflow-y-auto max-h-96">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Project Name</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Customer</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Start Date</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">End Date</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectTimeline"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('apiKeyModal');
+        const dashboardContent = document.getElementById('dashboardContent');
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const sheetIdInput = document.getElementById('sheetId');
+        const sheetRangeInput = document.getElementById('sheetRange');
+        const modalError = document.getElementById('modalError');
+        const loader = document.getElementById('loader');
+
+        const statusFilter = document.getElementById('statusFilter');
+        const typeFilter = document.getElementById('typeFilter');
+        const roleFilter = document.getElementById('roleFilter'); // New element
+        const resourceFilter = document.getElementById('resourceFilter');
+        
+        const headerMapping = {
+            'project-id': 'projectId',
+            'project-customer': 'projectCustomer',
+            'project-name': 'projectName',
+            'project-type': 'projectType',
+            'resource-id': 'resourceId',
+            'resource-name': 'resourceName',
+            'role-in-project': 'roleInProject',
+            'project-start': 'projectStart',
+            'project-end': 'projectEnd',
+            'project-status': 'projectStatus'
+        };
+
+        let workloadChartInstance;
+        let projectStatusChartInstance;
+        let fullProjectData = [];
+
+        function parseSheetData(data) {
+            const values = data.values;
+            if (!values || values.length < 2) throw new Error("Sheet is empty or has no data rows.");
+            const rawHeaders = values[0];
+            const headers = rawHeaders.map(h => headerMapping[h.trim().toLowerCase()] || h.trim().toLowerCase());
+            return values.slice(1).map(row => {
+                const rowData = {};
+                headers.forEach((header, index) => { rowData[header] = row[index] || null; });
+                return rowData;
+            });
+        }
+
+        async function loadDataAndBuildDashboard() {
+            const apiKey = apiKeyInput.value.trim();
+            const sheetId = sheetIdInput.value.trim();
+            let range = sheetRangeInput.value.trim();
+
+            if (!apiKey || !sheetId || !range) { showError("API Key, Sheet ID, and Range are required."); return; }
+            const parts = range.split('!');
+            if (parts.length === 2 && !parts[0].startsWith("'")) range = `'${parts[0]}'!${parts[1]}`;
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
+            showLoading(true);
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (!response.ok) {
+                    let msg = data.error?.message || `Error: ${response.status}`;
+                    if (response.status === 403) msg = "Permission Denied. Please ensure your Google Sheet is shared with 'Anyone with the link can view'.";
+                    if (response.status === 404) msg = "Sheet Not Found. Check Sheet ID and Range.";
+                    if (response.status === 400) msg = `Bad Request. Check API Key or Range format. Details: ${data.error.message}`;
+                    throw new Error(msg);
+                }
+                fullProjectData = parseSheetData(data);
+                populateFilters(fullProjectData);
+                applyFilters();
+                modal.classList.add('hidden');
+                dashboardContent.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error loading dashboard:", error);
+                showError(error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function populateFilters(data) {
+            const statuses = [...new Set(data.map(p => p.projectStatus).filter(Boolean))];
+            const types = [...new Set(data.map(p => p.projectType).filter(Boolean))];
+            const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))]; // New: get unique roles
+            const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
+
+            statusFilter.innerHTML = '<option value="all">All Statuses</option>';
+            statuses.forEach(s => statusFilter.innerHTML += `<option value="${s}">${s}</option>`);
+
+            typeFilter.innerHTML = '<option value="all">All Types</option>';
+            types.forEach(t => typeFilter.innerHTML += `<option value="${t}">${t}</option>`);
+            
+            // New: populate role filter
+            roleFilter.innerHTML = '<option value="all">All Roles</option>';
+            roles.forEach(r => roleFilter.innerHTML += `<option value="${r}">${r}</option>`);
+
+            resourceFilter.innerHTML = '<option value="all">All Resources</option>';
+            resources.sort().forEach(r => resourceFilter.innerHTML += `<option value="${r}">${r}</option>`);
+
+            [statusFilter, typeFilter, roleFilter, resourceFilter].forEach(filter => {
+                filter.addEventListener('change', applyFilters);
+            });
+        }
+
+        function applyFilters() {
+            const selectedStatus = statusFilter.value;
+            const selectedType = typeFilter.value;
+            const selectedRole = roleFilter.value; // New: get role value
+            const selectedResource = resourceFilter.value;
+
+            const filteredData = fullProjectData.filter(p => {
+                const statusMatch = selectedStatus === 'all' || p.projectStatus === selectedStatus;
+                const typeMatch = selectedType === 'all' || p.projectType === selectedType;
+                const roleMatch = selectedRole === 'all' || p.roleInProject === selectedRole; // New: role match logic
+                const resourceMatch = selectedResource === 'all' || p.resourceName === selectedResource;
+                return statusMatch && typeMatch && roleMatch && resourceMatch;
+            });
+
+            updateDashboard(filteredData);
+        }
+
+        function updateDashboard(data) {
+            const uniqueProjectDetails = [];
+            const projectIds = new Set();
+            data.forEach(p => {
+                if (p.projectId && !projectIds.has(p.projectId)) {
+                    projectIds.add(p.projectId);
+                    uniqueProjectDetails.push(p);
+                }
+            });
+
+            const unassignedAssignments = data.filter(p => !p.resourceName || p.resourceName.trim().toLowerCase() === '#n/a');
+            const atRiskProjects = uniqueProjectDetails.filter(p => p.projectStatus === 'At Risk');
+            const offTrackProjects = uniqueProjectDetails.filter(p => p.projectStatus === 'Off Track');
+            const onHoldProjects = uniqueProjectDetails.filter(p => p.projectStatus === 'On Hold');
+            const completedProjects = uniqueProjectDetails.filter(p => p.projectStatus === 'Completed');
+
+            document.getElementById('totalProjects').textContent = uniqueProjectDetails.length;
+            document.getElementById('unassignedAssignments').textContent = unassignedAssignments.length;
+            document.getElementById('atRiskProjects').textContent = atRiskProjects.length;
+            document.getElementById('offTrackProjects').textContent = offTrackProjects.length;
+            document.getElementById('onHoldProjects').textContent = onHoldProjects.length;
+            document.getElementById('completedProjects').textContent = completedProjects.length;
+            
+            updateWorkloadChart(data);
+            updateStatusChart(uniqueProjectDetails);
+            updateAssignmentsTable(data);
+            updateProjectSummaryTable(uniqueProjectDetails);
+        }
+        
+        function updateAssignmentsTable(assignments) {
+            const assignmentsBody = document.getElementById('assignmentsList');
+            assignmentsBody.innerHTML = '';
+            
+            assignments.sort((a, b) => (a.projectName || '').localeCompare(b.projectName || '') || (a.roleInProject || '').localeCompare(b.roleInProject || ''));
+
+            assignments.forEach(p => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+                
+                const isUnassigned = !p.resourceName || p.resourceName.trim().toLowerCase() === '#n/a';
+                const resourceCell = isUnassigned
+                    ? `<td class="py-2 px-4 text-red-500 font-semibold">${p.resourceName || 'UNASSIGNED'}</td>`
+                    : `<td class="py-2 px-4">${p.resourceName}</td>`;
+
+                row.innerHTML = `
+                    <td class="py-2 px-4">${p.projectName || 'N/A'} (${p.projectCustomer || 'N/A'})</td>
+                    <td class="py-2 px-4">${p.roleInProject || 'N/A'}</td>
+                    ${resourceCell}
+                `;
+                assignmentsBody.appendChild(row);
+            });
+        }
+
+        function updateWorkloadChart(data) {
+            const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
+            const workload = resources.reduce((acc, name) => {
+                const assignments = data.filter(p => p.resourceName === name);
+                acc[name] = { count: assignments.length, projects: assignments.map(a => ({ name: a.projectName, customer: a.projectCustomer, role: a.roleInProject })) };
+                return acc;
+            }, {});
+
+            if(workloadChartInstance) workloadChartInstance.destroy();
+            workloadChartInstance = new Chart(document.getElementById('workloadChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(workload),
+                    datasets: [{ label: 'Projects', data: Object.values(workload).map(w => w.count), backgroundColor: '#003366' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
+                    const person = ctx.label;
+                    const personData = workload[person];
+                    if (!personData) return '';
+                    let lines = [`${person}: ${personData.count} Assignment(s)`];
+                    personData.projects.forEach(p => lines.push(`- ${p.name || ''} (${p.customer || ''}) as ${p.role || ''}`));
+                    return lines;
+                }}}}}
+            });
+        }
+        
+        function updateStatusChart(projects) {
+            const statuses = projects.reduce((acc, p) => {
+                 if (!p.projectStatus) return acc;
+                 if (!acc[p.projectStatus]) acc[p.projectStatus] = { count: 0, projects: [] };
+                 acc[p.projectStatus].count++;
+                 acc[p.projectStatus].projects.push({ name: p.projectName, customer: p.projectCustomer });
+                 return acc;
+            }, {});
+
+            const statusColors = { 'On Track': '#22c55e', 'At Risk': '#f59e0b', 'Off Track': '#ef4444', 'On Hold': '#6b7280', 'Completed': '#3b82f6' };
+
+            if(projectStatusChartInstance) projectStatusChartInstance.destroy();
+            projectStatusChartInstance = new Chart(document.getElementById('projectStatusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statuses),
+                    datasets: [{ 
+                        data: Object.values(statuses).map(s => s.count), 
+                        backgroundColor: Object.keys(statuses).map(s => statusColors[s] || '#a8a29e'),
+                        hoverOffset: 4 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx) => {
+                    const status = ctx.label || '';
+                    const count = ctx.raw;
+                    const statusInfo = statuses[status];
+                    let lines = [`${status}: ${count}`];
+                    if (statusInfo?.projects) statusInfo.projects.forEach(p => lines.push(`- ${p.name} (${p.customer})`));
+                    return lines;
+                }}}}}
+            });
+        }
+
+        function updateProjectSummaryTable(projects) {
+            const timelineBody = document.getElementById('projectTimeline');
+            timelineBody.innerHTML = '';
+            projects.sort((a, b) => new Date(a.projectStart) - new Date(b.projectStart));
+            const statusColors = { 'On Track': 'bg-green-100 text-green-800', 'At Risk': 'bg-amber-100 text-amber-800', 'Off Track': 'bg-red-100 text-red-800', 'On Hold': 'bg-gray-100 text-gray-800', 'Completed': 'bg-blue-100 text-blue-800' };
+
+            projects.forEach(p => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+                const statusClass = statusColors[p.projectStatus] || 'bg-gray-100';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4">${p.projectName || 'N/A'}</td>
+                    <td class="py-3 px-4">${p.projectCustomer || 'N/A'}</td>
+                    <td class="py-3 px-4">${p.projectStart ? new Date(p.projectStart).toLocaleDateString() : 'N/A'}</td>
+                    <td class="py-3 px-4">${p.projectEnd ? new Date(p.projectEnd).toLocaleDateString() : 'N/A'}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">${p.projectStatus || 'N/A'}</span></td>
+                `;
+                timelineBody.appendChild(row);
+            });
+        }
+
+        function showError(message) { modalError.innerHTML = message; modalError.classList.remove('hidden'); }
+        function showLoading(isLoading) {
+            loader.style.display = isLoading ? 'block' : 'none';
+            loadDataBtn.disabled = isLoading;
+            if (isLoading) modalError.classList.add('hidden');
+        }
+
+        loadDataBtn.addEventListener('click', loadDataAndBuildDashboard);
+    });
+    </script>
+
+</body>
+</html>
