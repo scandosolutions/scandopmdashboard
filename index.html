@@ -82,7 +82,7 @@
             </div>
              <div class="mt-4">
                 <label for="sheetRange" class="block text-sm font-medium text-gray-700">Sheet Name & Range</label>
-                <input type="text" id="sheetRange" value="Assignments!A:L" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" id="sheetRange" value="Assignments!A:M" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
             </div>
             <div class="mt-6 flex items-center justify-end">
                  <div id="loader" class="loader mr-4 hidden"></div>
@@ -201,6 +201,7 @@
                         <tr>
                             <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Project (Customer)</th>
                             <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Role</th>
+                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Responsibility</th>
                             <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Assigned Resource</th>
                         </tr>
                     </thead>
@@ -252,6 +253,8 @@
             'project-customer': 'projectCustomer',
             'project-name': 'projectName',
             'project-type': 'projectType',
+            'responsibility': 'responsibility',
+            'load': 'load',
             'resource-id': 'resourceId',
             'resource-name': 'resourceName',
             'role-in-project': 'roleInProject',
@@ -268,7 +271,6 @@
         let storedRange = '';
         
         const chartPalette = ['#219EBC', '#023047', '#FFB703', '#FB8500', '#126782', '#8ECAE6', '#E76F51', '#A8DADC', '#F4A261', '#7D8597'];
-
 
         function parseSheetData(data) {
             const values = data.values;
@@ -345,7 +347,7 @@
 
             projectFilter.innerHTML = '<option value="all">All Projects</option>';
             projects.sort().forEach(p => projectFilter.innerHTML += `<option value="${p}">${p}</option>`);
-
+            
             statusFilter.innerHTML = '<option value="all">All Statuses</option>';
             statuses.sort().forEach(s => statusFilter.innerHTML += `<option value="${s}">${s}</option>`);
 
@@ -367,11 +369,9 @@
             const allFilters = [projectFilter, statusFilter, typeFilter, roleFilter, resourceFilter];
             allFilters.forEach(filter => {
                 if (filter.value !== 'all') {
-                    filter.classList.add('bg-orange-100');
-                    filter.classList.add('border-orange-300');
+                    filter.classList.add('bg-orange-100', 'border-orange-300');
                 } else {
-                    filter.classList.remove('bg-orange-100');
-                    filter.classList.remove('border-orange-300');
+                    filter.classList.remove('bg-orange-100', 'border-orange-300');
                 }
             });
         }
@@ -446,6 +446,7 @@
                 row.innerHTML = `
                     <td class="py-2 px-4">${p.projectName || 'N/A'} (${p.projectCustomer || 'N/A'})</td>
                     <td class="py-2 px-4">${p.roleInProject || 'N/A'}</td>
+                    <td class="py-2 px-4">${p.responsibility || 'N/A'}</td>
                     ${resourceCell}
                 `;
                 assignmentsBody.appendChild(row);
