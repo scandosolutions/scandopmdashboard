@@ -101,7 +101,7 @@
         </header>
 
         <!-- Filters section -->
-        <div id="filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm">
+        <div id="filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm items-end">
             <div>
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700">Status</label>
                 <select id="statusFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
@@ -117,6 +117,11 @@
             <div>
                 <label for="resourceFilter" class="block text-sm font-medium text-gray-700">Resource</label>
                 <select id="resourceFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+            <div>
+                 <button id="refreshBtn" title="Refresh Data" class="w-full bg-[#FB8500] text-white font-semibold py-2 px-4 rounded-md hover:bg-[#FD9E02] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Refresh
+                </button>
             </div>
         </div>
 
@@ -169,7 +174,6 @@
             </div>
         </div>
 
-        <!-- FIX: Updated layout for two charts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div class="card p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload by Role Count</h2>
@@ -177,7 +181,6 @@
                     <canvas id="workloadChart"></canvas>
                 </div>
             </div>
-            <!-- NEW: Card for monthly hours chart -->
             <div class="card p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Monthly Hours per Resource</h2>
                 <div class="relative h-96">
@@ -232,6 +235,7 @@
         const sheetRangeInput = document.getElementById('sheetRange');
         const modalError = document.getElementById('modalError');
         const loader = document.getElementById('loader');
+        const refreshBtn = document.getElementById('refreshBtn');
 
         const statusFilter = document.getElementById('statusFilter');
         const typeFilter = document.getElementById('typeFilter');
@@ -249,13 +253,18 @@
             'project-start': 'projectStart',
             'project-end': 'projectEnd',
             'project-status': 'projectStatus',
-            'avg-monthly-hours': 'avgMonthlyHours' // NEW: Added mapping
+            'avg-monthly-hours': 'avgMonthlyHours'
         };
 
         let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance, hoursChartInstance;
         let fullProjectData = [];
+        let storedApiKey = '';
+        let storedSheetId = '';
+        let storedRange = '';
         
-        const blueAndOrangePalette = ['#219EBC', '#126782', '#023047', '#FFB703', '#FD9E02', '#FB8500', '#8ECAE6', '#FB9017'];
+        // FIX: Expanded color palette for more distinction
+        const chartPalette = ['#219EBC', '#023047', '#FFB703', '#FB8500', '#126782', '#8ECAE6', '#E76F51', '#A8DADC', '#F4A261', '#7D8597'];
+
 
         function parseSheetData(data) {
             const values = data.values;
@@ -268,18 +277,18 @@
                 return rowData;
             });
         }
+        
+        async function fetchAndProcessData() {
+            if (!storedApiKey || !storedSheetId || !storedRange) {
+                showError("API credentials are not set.");
+                return;
+            }
 
-        async function loadDataAndBuildDashboard() {
-            const apiKey = apiKeyInput.value.trim();
-            const sheetId = sheetIdInput.value.trim();
-            let range = sheetRangeInput.value.trim();
-
-            if (!apiKey || !sheetId || !range) { showError("API Key, Sheet ID, and Range are required."); return; }
-            const parts = range.split('!');
-            if (parts.length === 2 && !parts[0].startsWith("'")) range = `'${parts[0]}'!${parts[1]}`;
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
-            showLoading(true);
-
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${storedSheetId}/values/${encodeURIComponent(storedRange)}?key=${storedApiKey}`;
+            
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Refreshing...';
+            
             try {
                 const response = await fetch(url);
                 const data = await response.json();
@@ -293,14 +302,34 @@
                 fullProjectData = parseSheetData(data);
                 populateFilters(fullProjectData);
                 applyFilters();
-                modal.classList.add('hidden');
-                dashboardContent.classList.remove('hidden');
+                if (modal) modal.classList.add('hidden');
+                if (dashboardContent) dashboardContent.classList.remove('hidden');
             } catch (error) {
                 console.error("Error loading dashboard:", error);
                 showError(error.message);
             } finally {
-                showLoading(false);
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh';
             }
+        }
+
+        async function initialLoad() {
+            storedApiKey = apiKeyInput.value.trim();
+            storedSheetId = sheetIdInput.value.trim();
+            let range = sheetRangeInput.value.trim();
+
+            if (!storedApiKey || !storedSheetId || !range) { showError("API Key, Sheet ID, and Range are required."); return; }
+            const parts = range.split('!');
+            if (parts.length === 2 && !parts[0].startsWith("'")) storedRange = `'${parts[0]}'!${parts[1]}`;
+            else storedRange = range;
+            
+            loader.classList.remove('hidden');
+            loadDataBtn.disabled = true;
+
+            await fetchAndProcessData();
+
+            loader.classList.add('hidden');
+            loadDataBtn.disabled = false;
         }
 
         function populateFilters(data) {
@@ -370,7 +399,7 @@
             updateTypeChart(uniqueProjectDetails);
             updateRoleDistributionChart(data);
             updateWorkloadChart(data);
-            updateHoursChart(data); // New function call
+            updateHoursChart(data);
             updateAssignmentsTable(data);
             updateProjectSummaryTable(uniqueProjectDetails);
         }
@@ -415,7 +444,7 @@
                 return {
                     label: role,
                     data: resources.map(resource => (workload[resource][role] || []).length),
-                    backgroundColor: blueAndOrangePalette[index % blueAndOrangePalette.length]
+                    backgroundColor: chartPalette[index % chartPalette.length]
                 }
             });
 
@@ -426,7 +455,9 @@
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
                     scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }, 
-                    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', callbacks: {
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { mode: 'index', callbacks: {
                         label: function(context) {
                             const role = context.dataset.label;
                             const resourceName = context.label;
@@ -442,14 +473,20 @@
             });
         }
         
-        // NEW: Chart for monthly hours
         function updateHoursChart(data) {
             const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
+            const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))];
             
-            const hoursByResource = resources.map(name => {
-                return data
-                    .filter(p => p.resourceName === name && p.avgMonthlyHours)
-                    .reduce((sum, p) => sum + parseFloat(p.avgMonthlyHours), 0);
+            const hoursByRole = roles.map((role, index) => {
+                return {
+                    label: role,
+                    data: resources.map(resource => {
+                        return data
+                            .filter(p => p.resourceName === resource && p.roleInProject === role && p.avgMonthlyHours)
+                            .reduce((sum, p) => sum + parseFloat(p.avgMonthlyHours), 0);
+                    }),
+                    backgroundColor: chartPalette[index % chartPalette.length]
+                }
             });
 
             if (hoursChartInstance) hoursChartInstance.destroy();
@@ -457,28 +494,20 @@
                 type: 'bar',
                 data: {
                     labels: resources,
-                    datasets: [{
-                        label: 'Total Monthly Hours',
-                        data: hoursByResource,
-                        backgroundColor: blueAndOrangePalette,
-                        borderColor: '#ffffff',
-                        borderWidth: 1
-                    }]
+                    datasets: hoursByRole
                 },
                 options: {
-                    indexAxis: 'y', // Makes it a horizontal bar chart
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true } },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: (ctx) => ` ${ctx.raw.toFixed(1)} hours`
+                                label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)} hours`
                             }
                         }
-                    },
-                    scales: {
-                        x: { beginAtZero: true }
                     }
                 }
             });
@@ -533,7 +562,7 @@
                     labels: Object.keys(types),
                     datasets: [{ 
                         data: Object.values(types).map(t => t.count), 
-                        backgroundColor: Object.keys(types).map((t, i) => blueAndOrangePalette[i % blueAndOrangePalette.length]),
+                        backgroundColor: Object.keys(types).map((t, i) => chartPalette[i % chartPalette.length]),
                         hoverOffset: 4 
                     }]
                 },
@@ -564,7 +593,7 @@
                     labels: Object.keys(roles),
                     datasets: [{ 
                         data: Object.values(roles).map(r => r.count), 
-                        backgroundColor: Object.keys(roles).map((r, i) => blueAndOrangePalette[i % blueAndOrangePalette.length]),
+                        backgroundColor: Object.keys(roles).map((r, i) => chartPalette[i % chartPalette.length]),
                         hoverOffset: 4 
                     }]
                 },
@@ -604,11 +633,11 @@
         function showError(message) { modalError.innerHTML = message; modalError.classList.remove('hidden'); }
         function showLoading(isLoading) {
             loader.style.display = isLoading ? 'block' : 'none';
-            loadDataBtn.disabled = isLoading;
-            if (isLoading) modalError.classList.add('hidden');
+            if(loadDataBtn) loadDataBtn.disabled = isLoading;
         }
 
-        loadDataBtn.addEventListener('click', loadDataAndBuildDashboard);
+        if(loadDataBtn) loadDataBtn.addEventListener('click', initialLoad);
+        if(refreshBtn) refreshBtn.addEventListener('click', fetchAndProcessData);
     });
     </script>
 
