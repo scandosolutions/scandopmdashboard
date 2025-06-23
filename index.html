@@ -101,7 +101,11 @@
         </header>
 
         <!-- Filters section -->
-        <div id="filters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm items-end">
+        <div id="filters" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm items-end">
+            <div>
+                <label for="projectFilter" class="block text-sm font-medium text-gray-700">Project</label>
+                <select id="projectFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
             <div>
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700">Status</label>
                 <select id="statusFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
@@ -237,6 +241,7 @@
         const loader = document.getElementById('loader');
         const refreshBtn = document.getElementById('refreshBtn');
 
+        const projectFilter = document.getElementById('projectFilter');
         const statusFilter = document.getElementById('statusFilter');
         const typeFilter = document.getElementById('typeFilter');
         const roleFilter = document.getElementById('roleFilter');
@@ -262,7 +267,6 @@
         let storedSheetId = '';
         let storedRange = '';
         
-        // FIX: Expanded color palette for more distinction
         const chartPalette = ['#219EBC', '#023047', '#FFB703', '#FB8500', '#126782', '#8ECAE6', '#E76F51', '#A8DADC', '#F4A261', '#7D8597'];
 
 
@@ -333,16 +337,20 @@
         }
 
         function populateFilters(data) {
+            const projects = [...new Set(data.map(p => p.projectName).filter(Boolean))];
             const statuses = [...new Set(data.map(p => p.projectStatus).filter(Boolean))];
             const types = [...new Set(data.map(p => p.projectType).filter(Boolean))];
             const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))];
             const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
 
+            projectFilter.innerHTML = '<option value="all">All Projects</option>';
+            projects.sort().forEach(p => projectFilter.innerHTML += `<option value="${p}">${p}</option>`);
+
             statusFilter.innerHTML = '<option value="all">All Statuses</option>';
-            statuses.forEach(s => statusFilter.innerHTML += `<option value="${s}">${s}</option>`);
+            statuses.sort().forEach(s => statusFilter.innerHTML += `<option value="${s}">${s}</option>`);
 
             typeFilter.innerHTML = '<option value="all">All Types</option>';
-            types.forEach(t => typeFilter.innerHTML += `<option value="${t}">${t}</option>`);
+            types.sort().forEach(t => typeFilter.innerHTML += `<option value="${t}">${t}</option>`);
             
             roleFilter.innerHTML = '<option value="all">All Roles</option>';
             roles.sort().forEach(r => roleFilter.innerHTML += `<option value="${r}">${r}</option>`);
@@ -350,25 +358,41 @@
             resourceFilter.innerHTML = '<option value="all">All Resources</option>';
             resources.sort().forEach(r => resourceFilter.innerHTML += `<option value="${r}">${r}</option>`);
 
-            [statusFilter, typeFilter, roleFilter, resourceFilter].forEach(filter => {
+            [projectFilter, statusFilter, typeFilter, roleFilter, resourceFilter].forEach(filter => {
                 filter.addEventListener('change', applyFilters);
+            });
+        }
+        
+        function updateFilterStyles() {
+            const allFilters = [projectFilter, statusFilter, typeFilter, roleFilter, resourceFilter];
+            allFilters.forEach(filter => {
+                if (filter.value !== 'all') {
+                    filter.classList.add('bg-orange-100');
+                    filter.classList.add('border-orange-300');
+                } else {
+                    filter.classList.remove('bg-orange-100');
+                    filter.classList.remove('border-orange-300');
+                }
             });
         }
 
         function applyFilters() {
+            const selectedProject = projectFilter.value;
             const selectedStatus = statusFilter.value;
             const selectedType = typeFilter.value;
             const selectedRole = roleFilter.value;
             const selectedResource = resourceFilter.value;
 
             const filteredData = fullProjectData.filter(p => {
+                const projectMatch = selectedProject === 'all' || p.projectName === selectedProject;
                 const statusMatch = selectedStatus === 'all' || p.projectStatus === selectedStatus;
                 const typeMatch = selectedType === 'all' || p.projectType === selectedType;
                 const roleMatch = selectedRole === 'all' || p.roleInProject === selectedRole;
                 const resourceMatch = selectedResource === 'all' || p.resourceName === selectedResource;
-                return statusMatch && typeMatch && roleMatch && resourceMatch;
+                return projectMatch && statusMatch && typeMatch && roleMatch && resourceMatch;
             });
 
+            updateFilterStyles();
             updateDashboard(filteredData);
         }
 
