@@ -17,7 +17,7 @@
         .font-caveat {
             font-family: 'Caveat', cursive;
         }
-        .scando-blue-text { color: #023047; } /* Updated to a color from the new palette */
+        .scando-blue-text { color: #023047; }
         .card {
             background-color: white;
             border-radius: 0.75rem;
@@ -52,7 +52,7 @@
         }
         .loader {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #219EBC; /* Updated to a color from the new palette */
+            border-top: 4px solid #219EBC;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -82,7 +82,7 @@
             </div>
              <div class="mt-4">
                 <label for="sheetRange" class="block text-sm font-medium text-gray-700">Sheet Name & Range</label>
-                <input type="text" id="sheetRange" value="Assignments!A:K" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" id="sheetRange" value="Assignments!A:L" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
             </div>
             <div class="mt-6 flex items-center justify-end">
                  <div id="loader" class="loader mr-4 hidden"></div>
@@ -169,10 +169,20 @@
             </div>
         </div>
 
-        <div class="card p-6 mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload Distribution</h2>
-            <div class="relative h-96">
-                <canvas id="workloadChart"></canvas>
+        <!-- FIX: Updated layout for two charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Workload by Role Count</h2>
+                <div class="relative h-96">
+                    <canvas id="workloadChart"></canvas>
+                </div>
+            </div>
+            <!-- NEW: Card for monthly hours chart -->
+            <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Monthly Hours per Resource</h2>
+                <div class="relative h-96">
+                    <canvas id="hoursChart"></canvas>
+                </div>
             </div>
         </div>
         
@@ -238,13 +248,13 @@
             'role-in-project': 'roleInProject',
             'project-start': 'projectStart',
             'project-end': 'projectEnd',
-            'project-status': 'projectStatus'
+            'project-status': 'projectStatus',
+            'avg-monthly-hours': 'avgMonthlyHours' // NEW: Added mapping
         };
 
-        let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance;
+        let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance, hoursChartInstance;
         let fullProjectData = [];
-
-        // FIX: New "Blue & Orange" color palette
+        
         const blueAndOrangePalette = ['#219EBC', '#126782', '#023047', '#FFB703', '#FD9E02', '#FB8500', '#8ECAE6', '#FB9017'];
 
         function parseSheetData(data) {
@@ -360,6 +370,7 @@
             updateTypeChart(uniqueProjectDetails);
             updateRoleDistributionChart(data);
             updateWorkloadChart(data);
+            updateHoursChart(data); // New function call
             updateAssignmentsTable(data);
             updateProjectSummaryTable(uniqueProjectDetails);
         }
@@ -431,6 +442,48 @@
             });
         }
         
+        // NEW: Chart for monthly hours
+        function updateHoursChart(data) {
+            const resources = [...new Set(data.map(p => p.resourceName).filter(name => name && name.trim().toLowerCase() !== '#n/a'))];
+            
+            const hoursByResource = resources.map(name => {
+                return data
+                    .filter(p => p.resourceName === name && p.avgMonthlyHours)
+                    .reduce((sum, p) => sum + parseFloat(p.avgMonthlyHours), 0);
+            });
+
+            if (hoursChartInstance) hoursChartInstance.destroy();
+            hoursChartInstance = new Chart(document.getElementById('hoursChart'), {
+                type: 'bar',
+                data: {
+                    labels: resources,
+                    datasets: [{
+                        label: 'Total Monthly Hours',
+                        data: hoursByResource,
+                        backgroundColor: blueAndOrangePalette,
+                        borderColor: '#ffffff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // Makes it a horizontal bar chart
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ` ${ctx.raw.toFixed(1)} hours`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
         function updateStatusChart(projects) {
             const statuses = projects.reduce((acc, p) => {
                  if (!p.projectStatus) return acc;
