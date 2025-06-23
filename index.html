@@ -21,12 +21,7 @@
         .card {
             background-color: white;
             border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e5e7eb;
         }
         .filter-select {
             -webkit-appearance: none;
@@ -100,11 +95,14 @@
             <p class="text-gray-500">An overview of your projects, team, and workload.</p>
         </header>
 
-        <!-- Filters section -->
-        <div id="filters" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm items-end">
+        <div id="filters" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8 bg-white p-4 rounded-lg border border-gray-200 items-end">
             <div>
                 <label for="projectFilter" class="block text-sm font-medium text-gray-700">Project</label>
                 <select id="projectFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
+            </div>
+            <div>
+                <label for="customerFilter" class="block text-sm font-medium text-gray-700">Customer</label>
+                <select id="customerFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md filter-select"></select>
             </div>
             <div>
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700">Status</label>
@@ -129,7 +127,6 @@
             </div>
         </div>
 
-        <!-- KPI Cards Section -->
         <main class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
             <div class="card p-6 flex flex-col justify-between">
                 <h2 class="text-lg font-semibold text-gray-700">Total Projects</h2>
@@ -196,13 +193,13 @@
         <div class="card p-6 mt-8">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Assignments List</h2>
             <div class="overflow-y-auto max-h-96">
-                <table class="min-w-full bg-white">
+                <table class="min-w-full bg-white text-sm">
                     <thead class="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Project (Customer)</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Role</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Responsibility</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Assigned Resource</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Project (Customer)</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Role</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Responsibility</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Assigned Resource</th>
                         </tr>
                     </thead>
                     <tbody id="assignmentsList"></tbody>
@@ -213,14 +210,14 @@
         <div class="card p-6 mt-8">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Summary</h2>
             <div class="overflow-y-auto max-h-96">
-                <table class="min-w-full bg-white">
+                <table class="min-w-full bg-white text-sm">
                     <thead class="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Project Name</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Customer</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Start Date</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">End Date</th>
-                            <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Status</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Project Name</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Customer</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Start Date</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">End Date</th>
+                            <th class="py-2 px-3 text-left font-semibold text-gray-600">Status</th>
                         </tr>
                     </thead>
                     <tbody id="projectTimeline"></tbody>
@@ -243,6 +240,7 @@
         const refreshBtn = document.getElementById('refreshBtn');
 
         const projectFilter = document.getElementById('projectFilter');
+        const customerFilter = document.getElementById('customerFilter');
         const statusFilter = document.getElementById('statusFilter');
         const typeFilter = document.getElementById('typeFilter');
         const roleFilter = document.getElementById('roleFilter');
@@ -340,6 +338,7 @@
 
         function populateFilters(data) {
             const projects = [...new Set(data.map(p => p.projectName).filter(Boolean))];
+            const customers = [...new Set(data.map(p => p.projectCustomer).filter(Boolean))];
             const statuses = [...new Set(data.map(p => p.projectStatus).filter(Boolean))];
             const types = [...new Set(data.map(p => p.projectType).filter(Boolean))];
             const roles = [...new Set(data.map(p => p.roleInProject).filter(Boolean))];
@@ -347,6 +346,9 @@
 
             projectFilter.innerHTML = '<option value="all">All Projects</option>';
             projects.sort().forEach(p => projectFilter.innerHTML += `<option value="${p}">${p}</option>`);
+
+            customerFilter.innerHTML = '<option value="all">All Customers</option>';
+            customers.sort().forEach(c => customerFilter.innerHTML += `<option value="${c}">${c}</option>`);
             
             statusFilter.innerHTML = '<option value="all">All Statuses</option>';
             statuses.sort().forEach(s => statusFilter.innerHTML += `<option value="${s}">${s}</option>`);
@@ -360,13 +362,13 @@
             resourceFilter.innerHTML = '<option value="all">All Resources</option>';
             resources.sort().forEach(r => resourceFilter.innerHTML += `<option value="${r}">${r}</option>`);
 
-            [projectFilter, statusFilter, typeFilter, roleFilter, resourceFilter].forEach(filter => {
+            [projectFilter, customerFilter, statusFilter, typeFilter, roleFilter, resourceFilter].forEach(filter => {
                 filter.addEventListener('change', applyFilters);
             });
         }
         
         function updateFilterStyles() {
-            const allFilters = [projectFilter, statusFilter, typeFilter, roleFilter, resourceFilter];
+            const allFilters = [projectFilter, customerFilter, statusFilter, typeFilter, roleFilter, resourceFilter];
             allFilters.forEach(filter => {
                 if (filter.value !== 'all') {
                     filter.classList.add('bg-orange-100', 'border-orange-300');
@@ -378,6 +380,7 @@
 
         function applyFilters() {
             const selectedProject = projectFilter.value;
+            const selectedCustomer = customerFilter.value;
             const selectedStatus = statusFilter.value;
             const selectedType = typeFilter.value;
             const selectedRole = roleFilter.value;
@@ -385,11 +388,12 @@
 
             const filteredData = fullProjectData.filter(p => {
                 const projectMatch = selectedProject === 'all' || p.projectName === selectedProject;
+                const customerMatch = selectedCustomer === 'all' || p.projectCustomer === selectedCustomer;
                 const statusMatch = selectedStatus === 'all' || p.projectStatus === selectedStatus;
                 const typeMatch = selectedType === 'all' || p.projectType === selectedType;
                 const roleMatch = selectedRole === 'all' || p.roleInProject === selectedRole;
                 const resourceMatch = selectedResource === 'all' || p.resourceName === selectedResource;
-                return projectMatch && statusMatch && typeMatch && roleMatch && resourceMatch;
+                return projectMatch && customerMatch && statusMatch && typeMatch && roleMatch && resourceMatch;
             });
 
             updateFilterStyles();
@@ -440,13 +444,13 @@
                 
                 const isUnassigned = !p.resourceName || p.resourceName.trim().toLowerCase() === '#n/a';
                 const resourceCell = isUnassigned
-                    ? `<td class="py-2 px-4 text-red-500 font-semibold">${p.resourceName || 'UNASSIGNED'}</td>`
-                    : `<td class="py-2 px-4">${p.resourceName}</td>`;
+                    ? `<td class="py-1.5 px-3 text-red-500 font-semibold">${p.resourceName || 'UNASSIGNED'}</td>`
+                    : `<td class="py-1.5 px-3">${p.resourceName}</td>`;
 
                 row.innerHTML = `
-                    <td class="py-2 px-4">${p.projectName || 'N/A'} (${p.projectCustomer || 'N/A'})</td>
-                    <td class="py-2 px-4">${p.roleInProject || 'N/A'}</td>
-                    <td class="py-2 px-4">${p.responsibility || 'N/A'}</td>
+                    <td class="py-1.5 px-3">${p.projectName || 'N/A'} (${p.projectCustomer || 'N/A'})</td>
+                    <td class="py-1.5 px-3">${p.roleInProject || 'N/A'}</td>
+                    <td class="py-1.5 px-3">${p.responsibility || 'N/A'}</td>
                     ${resourceCell}
                 `;
                 assignmentsBody.appendChild(row);
@@ -644,12 +648,13 @@
                 row.className = 'border-b hover:bg-gray-50';
                 const statusClass = statusColors[p.projectStatus] || 'bg-gray-100';
                 
+                // FIX: Added text-sm and compact padding
                 row.innerHTML = `
-                    <td class="py-3 px-4">${p.projectName || 'N/A'}</td>
-                    <td class="py-3 px-4">${p.projectCustomer || 'N/A'}</td>
-                    <td class="py-3 px-4">${p.projectStart ? new Date(p.projectStart).toLocaleDateString() : 'N/A'}</td>
-                    <td class="py-3 px-4">${p.projectEnd ? new Date(p.projectEnd).toLocaleDateString() : 'N/A'}</td>
-                    <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">${p.projectStatus || 'N/A'}</span></td>
+                    <td class="py-1.5 px-3">${p.projectName || 'N/A'}</td>
+                    <td class="py-1.5 px-3">${p.projectCustomer || 'N/A'}</td>
+                    <td class="py-1.5 px-3">${p.projectStart ? new Date(p.projectStart).toLocaleDateString() : 'N/A'}</td>
+                    <td class="py-1.5 px-3">${p.projectEnd ? new Date(p.projectEnd).toLocaleDateString() : 'N/A'}</td>
+                    <td class="py-1.5 px-3"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">${p.projectStatus || 'N/A'}</span></td>
                 `;
                 timelineBody.appendChild(row);
             });
