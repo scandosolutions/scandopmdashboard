@@ -154,7 +154,7 @@
             </div>
         </main>
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div class="card p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Status</h2>
                 <div class="relative h-72">
@@ -171,6 +171,12 @@
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Role Distribution</h2>
                 <div class="relative h-72">
                     <canvas id="roleDistributionChart"></canvas>
+                </div>
+            </div>
+             <div class="card p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Projects by Customer</h2>
+                <div class="relative h-72">
+                    <canvas id="customerChart"></canvas>
                 </div>
             </div>
         </div>
@@ -262,7 +268,7 @@
             'avg-monthly-hours': 'avgMonthlyHours'
         };
 
-        let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance, hoursChartInstance;
+        let workloadChartInstance, projectStatusChartInstance, projectTypeChartInstance, roleDistributionChartInstance, hoursChartInstance, customerChartInstance;
         let fullProjectData = [];
         let storedApiKey = '';
         let storedSheetId = '';
@@ -426,6 +432,7 @@
             updateStatusChart(uniqueProjectDetails);
             updateTypeChart(uniqueProjectDetails);
             updateRoleDistributionChart(data);
+            updateCustomerChart(uniqueProjectDetails);
             updateWorkloadChart(data);
             updateHoursChart(data);
             updateAssignmentsTable(data);
@@ -440,14 +447,10 @@
 
             assignments.forEach(p => {
                 const row = document.createElement('tr');
-                row.className = 'border-b hover:bg-gray-50';
-                
-                const isUnassigned = !p.resourceName || p.resourceName.trim().toLowerCase() === '#n/a';
-                const resourceCell = isUnassigned
+                row.className = 'border-b hover:bg-gray-50';                const isUnassigned = !p.resourceName || p.resourceName.trim().toLowerCase() === '#n/a';
+                const resourceCell = isUnassigned 
                     ? `<td class="py-1.5 px-3 text-red-500 font-semibold">${p.resourceName || 'UNASSIGNED'}</td>`
-                    : `<td class="py-1.5 px-3">${p.resourceName}</td>`;
-
-                row.innerHTML = `
+                    : `<td class="py-1.5 px-3">${p.resourceName}</td>`;                row.innerHTML = `
                     <td class="py-1.5 px-3">${p.projectName || 'N/A'} (${p.projectCustomer || 'N/A'})</td>
                     <td class="py-1.5 px-3">${p.roleInProject || 'N/A'}</td>
                     <td class="py-1.5 px-3">${p.responsibility || 'N/A'}</td>
@@ -636,6 +639,37 @@
                 }}}}}
             });
         }
+        
+        function updateCustomerChart(projects) {
+             const customers = projects.reduce((acc, p) => {
+                 if (!p.projectCustomer) return acc;
+                 if (!acc[p.projectCustomer]) acc[p.projectCustomer] = { count: 0, projects: [] };
+                 acc[p.projectCustomer].count++;
+                 acc[p.projectCustomer].projects.push({ name: p.projectName, status: p.projectStatus });
+                 return acc;
+            }, {});
+
+            if(customerChartInstance) customerChartInstance.destroy();
+            customerChartInstance = new Chart(document.getElementById('customerChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(customers),
+                    datasets: [{ 
+                        data: Object.values(customers).map(c => c.count), 
+                        backgroundColor: Object.keys(customers).map((c, i) => chartPalette[i % chartPalette.length]),
+                        hoverOffset: 4 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => {
+                    const customer = ctx.label || '';
+                    const count = ctx.raw;
+                    const customerInfo = customers[customer];
+                    let lines = [`${customer}: ${count}`];
+                    if (customerInfo?.projects) customerInfo.projects.forEach(p => lines.push(`- ${p.name} (${p.status})`));
+                    return lines;
+                }}}}}
+            });
+        }
 
         function updateProjectSummaryTable(projects) {
             const timelineBody = document.getElementById('projectTimeline');
@@ -648,7 +682,6 @@
                 row.className = 'border-b hover:bg-gray-50';
                 const statusClass = statusColors[p.projectStatus] || 'bg-gray-100';
                 
-                // FIX: Added text-sm and compact padding
                 row.innerHTML = `
                     <td class="py-1.5 px-3">${p.projectName || 'N/A'}</td>
                     <td class="py-1.5 px-3">${p.projectCustomer || 'N/A'}</td>
